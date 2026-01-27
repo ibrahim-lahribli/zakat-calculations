@@ -1,0 +1,49 @@
+{
+  "name": "zakat-calculations",
+  "version": "0.1.0",
+  "description": "Reusable zakat calculation logic and types for web and mobile apps. Accurate Islamic calculations based on Maliki school jurisprudence.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ibrahim-lahribli/zakat-calculations.git"
+  },
+  "homepage": "https://github.com/ibrahim-lahribli/zakat-calculations#readme",
+  "bugs": {
+    "url": "https://github.com/ibrahim-lahribli/zakat-calculations/issues"
+  },
+  "keywords": [
+    "zakat",
+    "calculations",
+    "islamic",
+    "finance",
+    "maliki",
+    "nisab",
+    "alms",
+    "fatwa",
+    "morocco",
+    "calculator"
+  ],
+  "author": "Ibrahim Lahribli",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  }
+}

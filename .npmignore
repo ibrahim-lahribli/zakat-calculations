@@ -1,0 +1,38 @@
+# Development files
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+__tests__/
+jest.config.js
+coverage/
+*.test.ts
+
+# Source files
+*.ts
+!*.d.ts
+
+# Build tools
+tsconfig.json
+babel.config.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.github/
+.gitignore
+.npmignore
+
+# Other
+.env
+.env.local
+*.pem
