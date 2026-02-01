@@ -5,22 +5,51 @@ import {
 } from "./types";
 
 export const OPTION_LABELS: Record<string, string> = {
+  // Irrigation methods
   rain: "مطر طبيعي (10%)",
   artificial: "ري صناعي (5%)",
+  
+  // Purpose types
   personal: "استهلاك شخصي",
-  trade: "تجارة",
+  trade: "تجارة وبيع",
+  
+  // Livestock types
   camels: "إبل",
   cows: "بقر",
   sheep: "غنم/ماعز",
-  inkind: "عيناً",
-  cash: "نقداً",
-  single: "أعزب",
-  family: "متزوج/عائلة",
-  receivable: "دين لي",
-  payable: "دين علي",
-  expected: "مرجو السداد",
-  doubtful: "مشكوك فيه",
+  
+  // Payment methods
+  inkind: "عيناً (من الماشية نفسها)",
+  cash: "نقداً (بسعر السوق)",
+  
+  // Family status
+  single: "فرد (خصم الكفاية: 3,266 درهم شهرياً)",
+  family: "عائلة (خصم الكفاية: 3,266 درهم شهرياً)",
+  
+  // Debt types
+  receivable: "دين لي على الغير (أنا الدائن)",
+  payable: "دين علي للغير (أنا المدين)",
+  
+  // Debt status
+  expected: "مرجو السداد قريباً",
+  doubtful: "مشكوك في تحصيله",
   hopeless: "ميؤوس منه",
+};
+
+// Configuration constants based on Moroccan Fatwa (Oct 2025)
+export const CONFIG_VALUES = {
+  // SMIG (Minimum wage) from Fatwa: 3,266 Dirhams per month
+  SMIG_MONTHLY: 3266,
+  SMIG_ANNUAL: 3266 * 12, // 39,192 Dirhams per year
+  
+  // Nisab values (can be updated from market prices)
+  NISAB_GRAINS_KG: 653, // 5 wasq in kg
+  
+  // Zakat rates
+  RATE_LUNAR: 0.025, // 2.5%
+  RATE_SOLAR: 0.02432, // 2.432%
+  RATE_RAIN_IRRIGATION: 0.1, // 10%
+  RATE_ARTIFICIAL_IRRIGATION: 0.05, // 5%
 };
 
 // Livestock zakat tables (Maliki school)
@@ -140,6 +169,24 @@ export function calculateZakat(
         label: "الكمية",
         value: `${quantity.toLocaleString("ar-MA")} كجم`,
       });
+      breakdown.push({
+        label: "الغرض من المحصول",
+        value: OPTION_LABELS[purpose],
+      });
+      
+      // Validation: marketValue is required when purpose is 'trade'
+      if (purpose === "trade" && marketValue <= 0) {
+        breakdown.push({
+          label: "خطأ",
+          value: "القيمة السوقية مطلوبة عند الغرض التجاري",
+        });
+        return {
+          zakatAmount: 0,
+          meetsNisab: false,
+          zakatInKind: "",
+          breakdown,
+        };
+      }
       if (purpose === "trade" && marketValue > 0) {
         zakatAmount = marketValue * activeRate;
         breakdown.push({
@@ -148,7 +195,7 @@ export function calculateZakat(
         });
         breakdown.push({
           label: `نسبة الزكاة (${isSolarYear ? "ميلادي" : "هجري"})`,
-          value: `${(activeRate * 100).toFixed(3)}%`,
+          value: `${(activeRate * 100).toFixed(1)}%`,
         });
       } else {
         const rate = irrigation === "rain" ? 0.1 : 0.05;
@@ -172,6 +219,10 @@ export function calculateZakat(
         value: OPTION_LABELS[livestockType],
       });
       breakdown.push({ label: "العدد", value: `${count} رأس` });
+      breakdown.push({
+        label: "طريقة الدفع",
+        value: OPTION_LABELS[paymentMethod],
+      });
       let zakatResult: string | null = null;
       let nisabCount = 0;
       if (livestockType === "camels") {
@@ -240,7 +291,7 @@ export function calculateZakat(
       zakatAmount = netValue * activeRate;
       breakdown.push({
         label: `نسبة الزكاة (${isSolarYear ? "ميلادي" : "هجري"})`,
-        value: `${(activeRate * 100).toFixed(3)}%`,
+        value: `${(activeRate * 100).toFixed(1)}%`,
       });
       break;
     }
@@ -286,14 +337,14 @@ export function calculateZakat(
       zakatAmount = netValue * activeRate;
       breakdown.push({
         label: `نسبة الزكاة (${isSolarYear ? "ميلادي" : "هجري"})`,
-        value: `${(activeRate * 100).toFixed(3)}%`,
+        value: `${(activeRate * 100).toFixed(1)}%`,
       });
       break;
     }
     case "services": {
       const annualIncome = Number(wizardData.annualIncome) || 0;
       const customExpenses = Number(wizardData.customExpenses) || 0;
-      const defaultExpenses = 39192;
+      const defaultExpenses = CONFIG_VALUES.SMIG_ANNUAL;
       const livingExpenses =
         customExpenses > 0 ? customExpenses : defaultExpenses;
       const surplus = annualIncome - livingExpenses;
@@ -325,7 +376,7 @@ export function calculateZakat(
       zakatAmount = surplus * activeRate;
       breakdown.push({
         label: `نسبة الزكاة (${isSolarYear ? "ميلادي" : "هجري"})`,
-        value: `${(activeRate * 100).toFixed(3)}%`,
+        value: `${(activeRate * 100).toFixed(1)}%`,
       });
       break;
     }
@@ -380,7 +431,7 @@ export function calculateZakat(
       zakatAmount = netValue * activeRate;
       breakdown.push({
         label: `نسبة الزكاة (${isSolarYear ? "ميلادي" : "هجري"})`,
-        value: `${(activeRate * 100).toFixed(3)}%`,
+        value: `${(activeRate * 100).toFixed(1)}%`,
       });
       break;
     }
@@ -434,7 +485,7 @@ export function calculateZakat(
       zakatAmount = debtAmount * activeRate;
       breakdown.push({
         label: `نسبة الزكاة (${isSolarYear ? "ميلادي" : "هجري"})`,
-        value: `${(activeRate * 100).toFixed(3)}%`,
+        value: `${(activeRate * 100).toFixed(1)}%`,
       });
       break;
     }

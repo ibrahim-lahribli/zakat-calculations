@@ -702,3 +702,196 @@ describe("calculateZakat - Category Tests", () => {
     });
   });
 });
+
+// Tests for Phase 1 Critical Bug Fixes
+describe("Phase 1 Bug Fixes", () => {
+  const nisabSilver = 1500;
+  const nisabGold = 3000;
+
+  describe("Percentage Formatting Fix", () => {
+    it("displays 2.5% instead of 2.500% for lunar year calculations", () => {
+      const input: ZakatCalculationInput = {
+        category: "cash",
+        wizardData: {
+          cashAmount: 2000,
+          goldGrams: 0,
+          silverGrams: 0,
+          immediateDebts: 0,
+        },
+        isSolarYear: false,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      const percentageItem = result.breakdown.find(item => 
+        item.label.includes("نسبة الزكاة")
+      );
+      expect(percentageItem?.value).toBe("2.5%");
+    });
+
+    it("displays 2.4% instead of 2.432% for solar year calculations", () => {
+      const input: ZakatCalculationInput = {
+        category: "cash",
+        wizardData: {
+          cashAmount: 2000,
+          goldGrams: 0,
+          silverGrams: 0,
+          immediateDebts: 0,
+        },
+        isSolarYear: true,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      const percentageItem = result.breakdown.find(item => 
+        item.label.includes("نسبة الزكاة")
+      );
+      expect(percentageItem?.value).toBe("2.4%");
+    });
+  });
+
+  describe("Payment Method in Livestock Breakdown", () => {
+    it("includes payment method in livestock breakdown", () => {
+      const input: ZakatCalculationInput = {
+        category: "livestock",
+        wizardData: {
+          livestockType: "sheep",
+          count: 50,
+          paymentMethod: "inkind",
+        },
+        isSolarYear: false,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      expect(result.breakdown).toContainEqual({
+        label: "طريقة الدفع",
+        value: "عيناً (من الماشية نفسها)",
+      });
+    });
+
+    it("displays correct payment method for cash payment", () => {
+      const input: ZakatCalculationInput = {
+        category: "livestock",
+        wizardData: {
+          livestockType: "sheep",
+          count: 50,
+          paymentMethod: "cash",
+        },
+        isSolarYear: false,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      expect(result.breakdown).toContainEqual({
+        label: "طريقة الدفع",
+        value: "نقداً (بسعر السوق)",
+      });
+    });
+  });
+
+  describe("Updated OPTION_LABELS", () => {
+    it("displays complete payment method translations", () => {
+      const { OPTION_LABELS } = require("../calculations");
+      expect(OPTION_LABELS.inkind).toBe("عيناً (من الماشية نفسها)");
+      expect(OPTION_LABELS.cash).toBe("نقداً (بسعر السوق)");
+    });
+
+    it("displays family status with SMIG amounts", () => {
+      const { OPTION_LABELS } = require("../calculations");
+      expect(OPTION_LABELS.single).toBe("فرد (خصم الكفاية: 3,266 درهم شهرياً)");
+      expect(OPTION_LABELS.family).toBe("عائلة (خصم الكفاية: 3,266 درهم شهرياً)");
+    });
+
+    it("displays enhanced debt type translations", () => {
+      const { OPTION_LABELS } = require("../calculations");
+      expect(OPTION_LABELS.receivable).toBe("دين لي على الغير (أنا الدائن)");
+      expect(OPTION_LABELS.payable).toBe("دين علي للغير (أنا المدين)");
+    });
+  });
+
+  describe("Configuration Constants", () => {
+    it("exports CONFIG_VALUES with correct SMIG amounts", () => {
+      const { CONFIG_VALUES } = require("../calculations");
+      expect(CONFIG_VALUES.SMIG_MONTHLY).toBe(3266);
+      expect(CONFIG_VALUES.SMIG_ANNUAL).toBe(39192);
+      expect(CONFIG_VALUES.NISAB_GRAINS_KG).toBe(653);
+    });
+
+    it("uses CONFIG_VALUES in services calculation", () => {
+      const input: ZakatCalculationInput = {
+        category: "services",
+        wizardData: {
+          annualIncome: 50000,
+          customExpenses: 0,
+        },
+        isSolarYear: false,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      expect(result.zakatAmount).toBe((50000 - 39192) * 0.025);
+    });
+  });
+
+  describe("Market Value Validation", () => {
+    it("returns error when purpose is trade but marketValue is 0", () => {
+      const input: ZakatCalculationInput = {
+        category: "grains",
+        wizardData: {
+          quantity: 1000,
+          irrigation: "rain",
+          purpose: "trade",
+          marketValue: 0,
+        },
+        isSolarYear: false,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      expect(result.meetsNisab).toBe(false);
+      expect(result.zakatAmount).toBe(0);
+      expect(result.breakdown).toContainEqual({
+        label: "خطأ",
+        value: "القيمة السوقية مطلوبة عند الغرض التجاري",
+      });
+    });
+
+    it("calculates correctly when purpose is trade and marketValue is provided", () => {
+      const input: ZakatCalculationInput = {
+        category: "grains",
+        wizardData: {
+          quantity: 1000,
+          irrigation: "rain",
+          purpose: "trade",
+          marketValue: 5000,
+        },
+        isSolarYear: false,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      expect(result.meetsNisab).toBe(true);
+      expect(result.zakatAmount).toBe(125); // 5000 * 0.025
+    });
+
+    it("calculates personal consumption without marketValue", () => {
+      const input: ZakatCalculationInput = {
+        category: "grains",
+        wizardData: {
+          quantity: 1000,
+          irrigation: "rain",
+          purpose: "personal",
+          marketValue: 0,
+        },
+        isSolarYear: false,
+        nisabGold,
+        nisabSilver,
+      };
+      const result = calculateZakat(input);
+      expect(result.meetsNisab).toBe(true);
+      expect(result.zakatAmount).toBe(100); // 1000 * 0.1
+      expect(result.zakatInKind).toBe("100 كجم");
+    });
+  });
+});
